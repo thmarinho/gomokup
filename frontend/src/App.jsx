@@ -13,7 +13,7 @@ function App() {
   const [gameEnded, setGameEnded] = useState(false)
   const [winner, setWinner] = useState(null)
   const [points, setPoints] = useState([])
-  const [paused, setPaused] = useState(false)
+  const [gamePaused, setGamePaused] = useState(false)
   const [winningCells, setWinningCells] = useState([])
   const [maxMoves, setMaxMoves] = useState(GRID_SIZE ** 2 + 1)
   const [socket, setSocket] = useState(null)
@@ -27,9 +27,13 @@ function App() {
   useEffect(() => {
     if (!socket)
       return
+
+    if (!gamePaused)
+      setMaxMoves(GRID_SIZE ** 2 + 1)
+
     socket.send('PAUSE')
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused])
+  }, [gamePaused])
 
   useEffect(() => {
     if (!socket) return
@@ -52,7 +56,7 @@ function App() {
         setGameEnded(false)
         setWinner(null)
         setPoints([ptsTeam1, ptsTeam2])
-        setPaused(false)
+        setGamePaused(false)
         setWinningCells([])
         setMaxMoves(GRID_SIZE ** 2 + 1)
         setAnnoncement(null)
@@ -103,7 +107,7 @@ function App() {
       <div className='absolute top-0 left-1/2'>{winner && <ConfettiExplosion particleCount={150} />}</div>
       <div className='absolute top-0 left-3/4'>{winner && <ConfettiExplosion particleCount={150} />}</div>
       <div className='absolute top-0 right-0'>{winner && <ConfettiExplosion particleCount={150} />}</div>
-      <button onClick={() => setPaused(old => !old)}>{paused ? "pas pause" : "pause"}</button>
+      <button onClick={() => setGamePaused(old => !old)}>{gamePaused ? "pas pause" : "pause"}</button>
       <div className="flex flex-col justify-center items-center gap-12">
         <div className=''>
           <div className='flex justify-center gap-6 items-center w-full pt-3 pb-1'>
@@ -171,7 +175,9 @@ function App() {
 
           <div className='text-gray-500 gap-3 flex items-center justify-center w-full px-16 mt-4'>
             <span>1</span>
-            <input disabled={!gameEnded} className='flex-grow accent-[#3E505B]' type="range" min={0} max={moves.length - 1} onChange={(e) => setMaxMoves(e.target.value)} value={maxMoves} />
+            {/* {gameEnded ? "ended" : "not ended"} */}
+            {/* {gamePaused ? "paused" : "not paused"} */}
+            <input disabled={gamePaused === false && gameEnded === false} className='flex-grow accent-[#3E505B]' type="range" min={0} max={moves.length - 1} onChange={(e) => setMaxMoves(e.target.value)} value={maxMoves} />
             <span>{moves.length}</span>
           </div>
 
