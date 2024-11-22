@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { useEffect, useState } from 'react'
 import Star from './Star';
 import ConfettiExplosion from 'react-confetti-explosion';
+import BreakingNews from './BreakingNews';
 
 const GRID_SIZE = 20
 
@@ -16,6 +17,7 @@ function App() {
   const [winningCells, setWinningCells] = useState([])
   const [maxMoves, setMaxMoves] = useState(GRID_SIZE ** 2 + 1)
   const [socket, setSocket] = useState(null)
+  const [announcement, setAnnoncement] = useState(null)
 
 
   useEffect(() => {
@@ -23,7 +25,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket)
+      return
     socket.send('PAUSE')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused])
@@ -34,10 +37,10 @@ function App() {
     socket.onmessage = (event) => {
       const data = event.data;
 
-      // ANNOUNCEMENT
       // Coordonnées victore
-      // start
+      // start btn
       // etoiles
+      // timer
 
       // START;NOM_EQUIPE_1;NOM_EQUIPE_2;LONGUEUR_DU_BO;PTS_TEAM1;PTS_TEAM2
       if (data.startsWith('START')) {
@@ -49,8 +52,21 @@ function App() {
         setGameEnded(false)
         setWinner(null)
         setPoints([ptsTeam1, ptsTeam2])
+        setPaused(false)
+        setWinningCells([])
+        setMaxMoves(GRID_SIZE ** 2 + 1)
+        setAnnoncement(null)
       }
 
+      // ANNONCEMENT;MESSAGE
+      if (data.startsWith('ANNONCEMENT')) {
+        const [, message] = data.split(';')
+
+        setAnnoncement(message)
+        setTimeout(() => {
+          setAnnoncement(null)
+        }, (5000));
+      }
 
       // TURN;X;Y;EQUIPE
       if (data.startsWith('TURN')) {
@@ -142,10 +158,10 @@ function App() {
               <span className='text-gray-700'>Derniers coups</span>
               <div className='flex flex-col gap-2'>
                 {(moves.slice(0, (parseInt(maxMoves) + 1)).reverse()).map((move, idx) => (
-                  <div key={idx} className='grid grid-cols-4 gap-2 place-items-center text-sm text-gray-500 px-2 py-1 first:bg-[#3E505B] first:text-white first:shadow-md rounded-lg group'>
+                  <div key={idx} className='grid grid-cols-3 gap-2 place-items-center text-sm text-gray-500 px-2 py-1 first:bg-[#3E505B] first:text-white first:shadow-md rounded-lg group'>
                     <div className={clsx('h-4 aspect-square rounded-full z-10 flex items-center justify-center', move.team === teams[0] ? 'bg-[#1ABC9C]' : 'bg-[#2C3D50]')}></div>
-                    <div>{move.x}</div>
-                    <div>{move.y}</div>
+                    <div>({move.x}:{move.y})</div>
+                    {/* <div>{move.y}</div> */}
                     <div className='text-[0.625rem]'>{move.delay || -1}ms</div>
                   </div>
                 ))}
@@ -161,6 +177,7 @@ function App() {
 
         </div>
       </div>
+      {announcement && <BreakingNews message={announcement} />}
     </div >
   )
 }
