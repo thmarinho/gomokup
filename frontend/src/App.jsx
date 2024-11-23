@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Star from './Star';
 import ConfettiExplosion from 'react-confetti-explosion';
 import BreakingNews from './BreakingNews';
+import Scoreboard from './Scoreboard';
 
 const GRID_SIZE = 20
 
@@ -19,6 +20,52 @@ function App() {
   const [socket, setSocket] = useState(null)
   const [announcement, setAnnoncement] = useState(null)
 
+  function findWinningCells() {
+    const board = {};
+    const directions = [
+        { dx: 0, dy: 1 },  // Horizontal
+        { dx: 1, dy: 0 },  // Vertical
+
+        { dx: 1, dy: 1 },  // Diagonal (down-right)
+        { dx: -1, dy: 1 }  // Diagonal (up-right)
+    ];
+
+
+    // Fill the board with moves
+    moves.forEach(move => {
+        if (!board[move.x]) board[move.x] = {};
+        board[move.x][move.y] = move.team;
+    });
+
+    // Helper function to check a direction
+    function checkDirection(x, y, dx, dy, team) {
+        const winningCells = [];
+        for (let i = 0; i < 5; i++) {
+            const nx = x + i * dx;
+            const ny = y + i * dy;
+            if (board[nx]?.[ny] === team) {
+                winningCells.push({ x: nx, y: ny });
+            } else {
+                return null; // Sequence breaks
+            }
+        }
+        return winningCells; // Return the winning sequence
+    }
+
+    // Search for a winning sequence
+    for (const move of moves) {
+        const { x, y, team } = move;
+
+        for (const { dx, dy } of directions) {
+            const result = checkDirection(x, y, dx, dy, team);
+            if (result) {
+                return result; // Return the winning cells if found
+            }
+        }
+    }
+
+    return null; // No winning sequence found
+}
 
   useEffect(() => {
     setSocket(new WebSocket('ws://localhost:8765'))
@@ -36,14 +83,18 @@ function App() {
   }, [gamePaused])
 
   useEffect(() => {
+    if (gameEnded && winner)
+      setWinningCells(findWinningCells())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameEnded])
+
+  useEffect(() => {
     if (!socket) return
 
     socket.onmessage = (event) => {
       const data = event.data;
 
-      // Coordonnées victore
       // start btn
-      // etoiles
       // timer
 
       // START;NOM_EQUIPE_1;NOM_EQUIPE_2;LONGUEUR_DU_BO;PTS_TEAM1;PTS_TEAM2
@@ -82,9 +133,10 @@ function App() {
 
       // END;EQUIPE_GAGNANTE/TIE;[POS_X;POS_Y;POS_X;POS_Y]
       if (data.startsWith('END')) {
-        const [, team, startX, startY] = data.split(';');
+        const [, team] = data.split(';');
 
         setGameEnded(true);
+        // Winning cells set in useEffect above
 
         if (team === 'TIE') {
           setWinner(null);
@@ -109,18 +161,7 @@ function App() {
       <div className='absolute top-0 right-0'>{winner && <ConfettiExplosion particleCount={150} />}</div>
       <button onClick={() => setGamePaused(old => !old)}>{gamePaused ? "pas pause" : "pause"}</button>
       <div className="flex flex-col justify-center items-center gap-12">
-        <div className=''>
-          <div className='flex justify-center gap-6 items-center w-full pt-3 pb-1'>
-            <div className='font-bold text-xl'>{points[0]}</div>
-            <div className={clsx('text-2xl font-extrabold bg-[#1ABC9C] py-2 px-4 rounded-lg', (gameEnded && winner === teams[0]) && 'scale-125 animate-wiggle')}>{teams[0]} </div>
-            <img src="/vs.png" className='h-12' alt="versus" />
-            <div className={clsx('text-2xl font-extrabold bg-[#2C3D50] text-white py-2 px-4 rounded-lg', (gameEnded && winner === teams[1]) && 'scale-125 animate-wiggle')}>{teams[1]} </div>
-            <div className='font-bold text-xl'>{points[1]}</div>
-
-            {/* <span className='text-2xl font-extrabold bg-[#2C3D50] py-2 px-4 rounded-lg text-white'>{teams[1]}</span> */}
-          </div>
-          <p className='text-center italic text-sm text-gray-500'>BO{BOLength}</p>
-        </div>
+        <Scoreboard teams={teams} points={points} BOLength={BOLength} gameEnded={gameEnded} winner={winner} />
         <div className='flex flex-col'>
           <div className='bg-white shadow-lg p-2 rounded-xl w-fit mx-auto flex divide-x gap-8 h-[41rem]'> {/* 2rem per cell + 0.5rem padding */}
             <div>
@@ -144,7 +185,7 @@ function App() {
                           if (moveIdxFound === undefined || !moveFound || moveIdxFound > maxMoves)
                             return ''
 
-                          return <div className={clsx('h-6 aspect-square rounded-full z-10 flex items-center justify-center', moveFound.team === teams[0] ? 'bg-[#1ABC9C]' : 'bg-[#2C3D50]')}>
+                          return <div className={clsx('h-6 aspect-square rounded-full z-10 flex items-center justify-center', moveFound.team === teams[0] ? 'bg-team1' : 'bg-team2')}>
                             {winningCells.find(cell => cell.x === rowIndex && cell.y === colIndex)
                               ? <Star className="h-3.5 text-yellow-400 animate-wiggle" />
                               : ''
@@ -162,10 +203,9 @@ function App() {
               <span className='text-gray-700'>Derniers coups</span>
               <div className='flex flex-col gap-2'>
                 {(moves.slice(0, (parseInt(maxMoves) + 1)).reverse()).map((move, idx) => (
-                  <div key={idx} className='grid grid-cols-3 gap-2 place-items-center text-sm text-gray-500 px-2 py-1 first:bg-[#3E505B] first:text-white first:shadow-md rounded-lg group'>
-                    <div className={clsx('h-4 aspect-square rounded-full z-10 flex items-center justify-center', move.team === teams[0] ? 'bg-[#1ABC9C]' : 'bg-[#2C3D50]')}></div>
+                  <div key={idx} className='grid grid-cols-3 gap-2 place-items-center text-sm text-gray-500 px-2 py-1 first:bg-accent first:text-white first:shadow-md rounded-lg group'>
+                    <div className={clsx('h-4 aspect-square rounded-full z-10 flex items-center justify-center', move.team === teams[0] ? 'bg-team1' : 'bg-team2')}></div>
                     <div>({move.x}:{move.y})</div>
-                    {/* <div>{move.y}</div> */}
                     <div className='text-[0.625rem]'>{move.delay || -1}ms</div>
                   </div>
                 ))}
@@ -175,9 +215,7 @@ function App() {
 
           <div className='text-gray-500 gap-3 flex items-center justify-center w-full px-16 mt-4'>
             <span>1</span>
-            {/* {gameEnded ? "ended" : "not ended"} */}
-            {/* {gamePaused ? "paused" : "not paused"} */}
-            <input disabled={gamePaused === false && gameEnded === false} className='flex-grow accent-[#3E505B]' type="range" min={0} max={moves.length - 1} onChange={(e) => setMaxMoves(e.target.value)} value={maxMoves} />
+            <input disabled={gamePaused === false && gameEnded === false} className='flex-grow accent-accent' type="range" min={0} max={moves.length - 1} onChange={(e) => setMaxMoves(e.target.value)} value={maxMoves} />
             <span>{moves.length}</span>
           </div>
 

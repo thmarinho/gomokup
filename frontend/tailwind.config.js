@@ -6,6 +6,17 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        accent: {
+          DEFAULT: "#3E505B"
+        },
+        team1: {
+          DEFAULT: "#1ABC9C"
+        },
+        team2: {
+          DEFAULT: "#2C3D50"
+        }
+      },
       backgroundImage: {
         'cross': 'url("/cross.svg")'
       },
