@@ -14,3 +14,7 @@
   clip-path: polygon(var(--p) 0,100% 0,calc(100% - var(--p)) 100%,0 100%);
   @apply h-full bg-yellow-500 aspect-[4] flex justify-center items-center text-lg font-extrabold ml-4 uppercase
 }
+
+.sidebar-icon {
+  @apply h-6 aspect-square text-gray-700 hover:scale-[1.01] disabled:cursor-not-allowed group-disabled:cursor-not-allowed
+}

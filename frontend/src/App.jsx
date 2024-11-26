@@ -5,6 +5,8 @@ import ConfettiExplosion from 'react-confetti-explosion';
 import BreakingNews from './BreakingNews';
 import Scoreboard from './Scoreboard';
 
+import { Cog6ToothIcon, ForwardIcon, PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline"
+
 const GRID_SIZE = 20
 
 function App() {
@@ -23,49 +25,49 @@ function App() {
   function findWinningCells() {
     const board = {};
     const directions = [
-        { dx: 0, dy: 1 },  // Horizontal
-        { dx: 1, dy: 0 },  // Vertical
+      { dx: 0, dy: 1 },  // Horizontal
+      { dx: 1, dy: 0 },  // Vertical
 
-        { dx: 1, dy: 1 },  // Diagonal (down-right)
-        { dx: -1, dy: 1 }  // Diagonal (up-right)
+      { dx: 1, dy: 1 },  // Diagonal (down-right)
+      { dx: -1, dy: 1 }  // Diagonal (up-right)
     ];
 
 
     // Fill the board with moves
     moves.forEach(move => {
-        if (!board[move.x]) board[move.x] = {};
-        board[move.x][move.y] = move.team;
+      if (!board[move.x]) board[move.x] = {};
+      board[move.x][move.y] = move.team;
     });
 
     // Helper function to check a direction
     function checkDirection(x, y, dx, dy, team) {
-        const winningCells = [];
-        for (let i = 0; i < 5; i++) {
-            const nx = x + i * dx;
-            const ny = y + i * dy;
-            if (board[nx]?.[ny] === team) {
-                winningCells.push({ x: nx, y: ny });
-            } else {
-                return null; // Sequence breaks
-            }
+      const winningCells = [];
+      for (let i = 0; i < 5; i++) {
+        const nx = x + i * dx;
+        const ny = y + i * dy;
+        if (board[nx]?.[ny] === team) {
+          winningCells.push({ x: nx, y: ny });
+        } else {
+          return null; // Sequence breaks
         }
-        return winningCells; // Return the winning sequence
+      }
+      return winningCells; // Return the winning sequence
     }
 
     // Search for a winning sequence
     for (const move of moves) {
-        const { x, y, team } = move;
+      const { x, y, team } = move;
 
-        for (const { dx, dy } of directions) {
-            const result = checkDirection(x, y, dx, dy, team);
-            if (result) {
-                return result; // Return the winning cells if found
-            }
+      for (const { dx, dy } of directions) {
+        const result = checkDirection(x, y, dx, dy, team);
+        if (result) {
+          return result; // Return the winning cells if found
         }
+      }
     }
 
     return null; // No winning sequence found
-}
+  }
 
   useEffect(() => {
     setSocket(new WebSocket('ws://localhost:8765'))
@@ -79,13 +81,13 @@ function App() {
       setMaxMoves(GRID_SIZE ** 2 + 1)
 
     socket.send('PAUSE')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gamePaused])
 
   useEffect(() => {
     if (gameEnded && winner)
       setWinningCells(findWinningCells())
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameEnded])
 
   useEffect(() => {
@@ -159,7 +161,16 @@ function App() {
       <div className='absolute top-0 left-1/2'>{winner && <ConfettiExplosion particleCount={150} />}</div>
       <div className='absolute top-0 left-3/4'>{winner && <ConfettiExplosion particleCount={150} />}</div>
       <div className='absolute top-0 right-0'>{winner && <ConfettiExplosion particleCount={150} />}</div>
-      <button onClick={() => setGamePaused(old => !old)}>{gamePaused ? "pas pause" : "pause"}</button>
+      <div className='absolute top-2 left-2 p-1 bg-white shadow-sm rounded-lg flex flex-col gap-3'>
+        <Cog6ToothIcon className='sidebar-icon' />
+        <button onClick={() => setGamePaused(old => !old)} className='group'>
+          {gamePaused
+            ? <PlayCircleIcon className='sidebar-icon' />
+            : <PauseCircleIcon className='sidebar-icon' />
+          }
+          </button>
+          <button onClick={() => socket.send('READY')}><ForwardIcon className='sidebar-icon' /></button>
+      </div>
       <div className="flex flex-col justify-center items-center gap-12">
         <Scoreboard teams={teams} points={points} BOLength={BOLength} gameEnded={gameEnded} winner={winner} />
         <div className='flex flex-col'>
