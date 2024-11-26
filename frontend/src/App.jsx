@@ -21,6 +21,7 @@ function App() {
   const [maxMoves, setMaxMoves] = useState(GRID_SIZE ** 2 + 1)
   const [socket, setSocket] = useState(null)
   const [announcement, setAnnoncement] = useState(null)
+  const [timedout, setTimedout] = useState(false)
 
   function findWinningCells() {
     const board = {};
@@ -85,7 +86,7 @@ function App() {
   }, [gamePaused])
 
   useEffect(() => {
-    if (gameEnded && winner)
+    if (gameEnded && winner && !timedout)
       setWinningCells(findWinningCells())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameEnded])
@@ -100,15 +101,14 @@ function App() {
       // timer
 
       // START;NOM_EQUIPE_1;NOM_EQUIPE_2;LONGUEUR_DU_BO;PTS_TEAM1;PTS_TEAM2
-      if (data.startsWith('START')) {
-        const [, team1, team2, _BOLength, ptsTeam1, ptsTeam2] = data.split(';')
+      if (data.startsWith('INFO')) {
+        const [, team1, team2, _BOLength] = data.split(';')
 
         setMoves([])
         setBOLength(_BOLength)
         setTeams([team1, team2])
         setGameEnded(false)
         setWinner(null)
-        setPoints([ptsTeam1, ptsTeam2])
         setGamePaused(false)
         setWinningCells([])
         setMaxMoves(GRID_SIZE ** 2 + 1)
@@ -133,18 +133,20 @@ function App() {
         setMoves((prevMoves) => [...prevMoves, move]);
       }
 
-      // END;EQUIPE_GAGNANTE/TIE;[POS_X;POS_Y;POS_X;POS_Y]
+      // END;EQUIPE_GAGNANTE/TIE;ptsTeam1;ptsTeam2
       if (data.startsWith('END')) {
-        const [, team] = data.split(';');
+        const [, team, ptsTeam1, ptsTeam2, timedout] = data.split(';');
 
+
+        setTimedout(timedout === "True")
         setGameEnded(true);
+        setPoints([ptsTeam1, ptsTeam2])
         // Winning cells set in useEffect above
 
         if (team === 'TIE') {
           setWinner(null);
         } else {
           setWinner(team);
-          // Get winning cells
         }
       }
     }
@@ -169,7 +171,11 @@ function App() {
             : <PauseCircleIcon className='sidebar-icon' />
           }
           </button>
-          <button onClick={() => socket.send('READY')}><ForwardIcon className='sidebar-icon' /></button>
+          <button onClick={() => {
+            socket.send('READY')
+            setTimedout(false)
+            setMoves([])
+          }}><ForwardIcon className='sidebar-icon' /></button>
       </div>
       <div className="flex flex-col justify-center items-center gap-12">
         <Scoreboard teams={teams} points={points} BOLength={BOLength} gameEnded={gameEnded} winner={winner} />
