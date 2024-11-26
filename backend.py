@@ -7,8 +7,9 @@ import subprocess
 import threading
 from queue import Queue, Empty
 
-global pause_status
-pause_status = True
+global pause_status, ready
+pause_status = False
+ready = False
 
 # Define the WebSocket server handler
 class WebSocketServer:
@@ -21,13 +22,15 @@ class WebSocketServer:
     async def handler(self, websocket):
         """Handle incoming WebSocket connections."""
         print("A client connected!")
-        global pause_status
+        global pause_status, ready
         self.clients.add(websocket)
         try:
             async for message in websocket:
                 print(f"Received message: {message}")
                 if message == 'PAUSE':
                     pause_status = not pause_status
+                elif message == 'READY':
+                    ready = True
         except websockets.ConnectionClosed:
             print("A client disconnected!")
         finally:
@@ -115,7 +118,6 @@ class Binary:
             self.stderr_thread.join()
             self.process.wait()
 
-
 class Gomoku:
     def __init__(self):
         self.board = []
@@ -124,16 +126,12 @@ class Gomoku:
 
     def __this_pos(self, i, j, type):
         if (self.board[i][j - 2] == type and self.board[i][j - 1] == type and self.board[i][j + 1] == type and self.board[i][j + 2] == type):
-            print('aze')
             return (True)
         elif (self.board[i - 2][j] == type and self.board[i - 1][j] == type and self.board[i + 1][j] == type and self.board[i + 2][j] == type):
-            print('zer')
             return (True)
         elif (self.board[i - 2][j - 2] == type and self.board[i - 1][j - 1] == type and self.board[i + 1][j + 1] == type and self.board[i + 2][j + 2] == type):
-            print('ert')
             return (True)
         elif (self.board[i + 2][j - 2] == type and self.board[i + 1][j - 1] == type and self.board[i - 1][j + 1] == type and self.board[i - 2][j + 2] == type):
-            print('tyu')
             for x in self.board:
                 print(x)
             return (True)
@@ -167,6 +165,7 @@ from time import time
 from math import ceil
 
 async def main(bin1, bin2, bo):
+    global pause_status, ready
     server = WebSocketServer()
     await server.start()
     while len(server.clients) == 0:
@@ -174,37 +173,39 @@ async def main(bin1, bin2, bo):
     i = -1
     p1 = Player(0, Binary(bin1), '')
     p1.binary.stdout('ABOUT')
-    p1.name = p1.binary.stdin(timeout=1).split('"')[1]
+    p1.name = p1.binary.stdin(timeout=5).split('"')[1]
     p2 = Player(0, Binary(bin2), '')
     p2.binary.stdout('ABOUT')
-    p2.name = p2.binary.stdin(timeout=1).split('"')[1]
+    p2.name = p2.binary.stdin(timeout=5).split('"')[1]
+    await server.send_message(f'INFO;{p1.name};{p2.name};{bo}')
     players = [p1, p2]
 
     while (True):
-        global pause_status
         p1.binary = Binary(bin1)
         p2.binary = Binary(bin2)
         i = (i + 1) % 2
-        await server.send_message(f'START;{p1.name};{p2.name};{bo};{p2.score};{p1.score}')
-        input("Press ENTER to launch next game")
+        while ready == False or pause_status == True:
+            await asyncio.sleep(0.1)
         game = Gomoku()
         p1.binary.stdout('START 20')
         p2.binary.stdout('START 20')
+        start = time()
         players[i].binary.stdout('BEGIN')
         players[(i+1)%2].binary.stdin(timeout=5)
         players[i].binary.stdin(timeout=5)
+        delay = time() - start
         res = players[i].binary.stdin(timeout=5)
         if res != None and ',' in res and len(res) < 6 and len(res) > 2:
             x,y = map(int, res.split(','))
             game.board[x][y] = i+1
-            await server.send_message(f'TURN;{x};{y};{players[i].name}')
+            await server.send_message(f'TURN;{x};{y};{players[i].name};{int(delay*1000)}')
         else:
-            await server.send_message(f'ANNONCEMENT;TIMEOUT;{players[(i+1)%2].name}')
+            await server.send_message(f'ANNONCEMENT;TIMEOUT;{players[i].name}')
             pass
         i = (i + 1) % 2
         plays = 1
         while (game.check_victory() == False and plays < 400):
-            while pause_status == False:
+            while pause_status == True:
                 await asyncio.sleep(0.1)
             players[i].binary.stdout(f'TURN {res}')
             start = time()
@@ -217,21 +218,33 @@ async def main(bin1, bin2, bo):
                     await server.send_message(f'TURN;{x};{y};{players[i].name};{int(delay*1000)}')
                     game.board[x][y] = i+1
                 else:
-                    await server.send_message(f'ANNOUNCEMENT;TRICHEUR')
+                    await server.send_message(f'ANNONCEMENT;TRICHEUR')
                     break
             else:
                 await server.send_message(f'ANNONCEMENT;TIMEOUT')
                 break
             i = (i + 1) % 2
             plays += 1
-        players[i].score += 1
-        p1.binary.stdout('END')
-        p2.binary.stdout('END')
-        await server.send_message(f'END;{players[(i+1)%2].name}')
+        if plays != 400:
+            players[i].score += 1
+        ready = False
+        try:
+            p1.binary.stdout('END')
+            p2.binary.stdout('END')
+        except:
+            pass
+
         if p1.score == (bo+1)/2 or p2.score == (bo+1)/2:
             print(f'{players[(i+1)%2].name} WON the BO.')
+            await server.send_message(f'END;{players[(i+1)%2].name};{p2.score};{p1.score};{game.check_victory()}')
+            await server.send_message(f'ANNONCEMENT;{players[(i+1)%2].name} WON THE GAME')
             break
-        input(f'{players[(i+1)%2].name} WON! Press enter to prepare next game.')
+        elif plays == 400:
+            await server.send_message(f'ANNONCEMENT;TIE')
+            await server.send_message(f'END;TIE')
+        else:
+            await server.send_message(f'END;{players[(i+1)%2].name};{p2.score};{p1.score};{game.check_victory()}')
+
     await server.stop()
     return
 

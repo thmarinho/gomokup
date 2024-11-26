@@ -97,9 +97,6 @@ function App() {
     socket.onmessage = (event) => {
       const data = event.data;
 
-      // start btn
-      // timer
-
       // START;NOM_EQUIPE_1;NOM_EQUIPE_2;LONGUEUR_DU_BO;PTS_TEAM1;PTS_TEAM2
       if (data.startsWith('INFO')) {
         const [, team1, team2, _BOLength] = data.split(';')
@@ -119,9 +116,9 @@ function App() {
       if (data.startsWith('ANNONCEMENT')) {
         const [, message] = data.split(';')
 
-        setAnnoncement(message)
+        setAnnoncement(old => old !== null ? `${old} | ${message}` : message)
         setTimeout(() => {
-          setAnnoncement(null)
+          setAnnoncement(old => old !== null ? old.split(" | ").slice(1).join(" | ") : null)
         }, (5000));
       }
 
@@ -137,8 +134,7 @@ function App() {
       if (data.startsWith('END')) {
         const [, team, ptsTeam1, ptsTeam2, timedout] = data.split(';');
 
-
-        setTimedout(timedout === "True")
+        setTimedout(timedout === "False")
         setGameEnded(true);
         setPoints([ptsTeam1, ptsTeam2])
         // Winning cells set in useEffect above
@@ -175,6 +171,11 @@ function App() {
             socket.send('READY')
             setTimedout(false)
             setMoves([])
+            setWinner(null)
+            setGameEnded(false)
+            setGamePaused(false)
+            setWinningCells([])
+            setAnnoncement(null)
           }}><ForwardIcon className='sidebar-icon' /></button>
       </div>
       <div className="flex flex-col justify-center items-center gap-12">
