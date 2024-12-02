@@ -67,7 +67,7 @@ function App() {
       }
     }
 
-    return null; // No winning sequence found
+    return []; // No winning sequence found
   }
 
   useEffect(() => {
@@ -166,17 +166,17 @@ function App() {
             ? <PlayCircleIcon className='sidebar-icon' />
             : <PauseCircleIcon className='sidebar-icon' />
           }
-          </button>
-          <button onClick={() => {
-            socket.send('READY')
-            setTimedout(false)
-            setMoves([])
-            setWinner(null)
-            setGameEnded(false)
-            setGamePaused(false)
-            setWinningCells([])
-            setAnnoncement(null)
-          }}><ForwardIcon className='sidebar-icon' /></button>
+        </button>
+        <button onClick={() => {
+          socket.send('READY')
+          setTimedout(false)
+          setMoves([])
+          setWinner(null)
+          setGameEnded(false)
+          setGamePaused(false)
+          setWinningCells([])
+          setAnnoncement(null)
+        }}><ForwardIcon className='sidebar-icon' /></button>
       </div>
       <div className="flex flex-col justify-center items-center gap-12">
         <Scoreboard teams={teams} points={points} BOLength={BOLength} gameEnded={gameEnded} winner={winner} />
